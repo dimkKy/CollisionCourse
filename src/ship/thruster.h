@@ -17,9 +17,11 @@ class Thruster : public godot::Area2D
 protected:
 	static void _bind_methods();
 
-	float maxThrust{ 100000.f };
+	//float maxThrust{ 100000.f };
 	float maxDraw{ 100.f };
+	//max - 1.
 	float powerLevel{ 0.f };
+	float thrustMultiplier{ 100000.f };
 	godot::AnimatedSprite2D* flameSprite{ nullptr };
 	godot::AnimatedSprite2D* bodySprite{ nullptr };
 	godot::CollisionShape2D* bodyShape{ nullptr };
@@ -41,11 +43,13 @@ public:
 
 	void SetThrusterName(int group, int number);
 	void SetPowerRelative(float multiplier) &;
+	void SetPowerFromThrust(double thrust) &;
 	void ChangePowerLevel(float levelTerm) &;
 	void SetZeroPower()&;
 
 	float GetDraw() const &;
 	float GetThrust() const &;
+	float GetMaxThrust() const &;
 	float GetPowerLevel() const &;
 };
 

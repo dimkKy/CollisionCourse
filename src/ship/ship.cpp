@@ -145,14 +145,14 @@ void Ship::_physics_process(double deltatime)
 
 	//godot::PhysicsServer2D::get_singleton()->body_get_direct_state(get_rid())->get_total_angular_damp
 	if (onLinearAccChanged) [[likely]] {
-		auto dampForce{ state->get_total_linear_damp() * state->get_linear_velocity() };
-		onLinearAccChanged(linearVec / get_mass() + state->get_total_gravity() - dampForce);
+		auto dampForceDMass{ state->get_total_linear_damp() * state->get_linear_velocity() };
+		onLinearAccChanged(linearVec / get_mass() + state->get_total_gravity() - dampForceDMass);
 
 	}
 
 	if (onTorqueAccChanged) [[likely]] {
-		auto dampForce{ state->get_total_angular_damp() * state->get_angular_velocity() };
-		onTorqueAccChanged(vec.z / get_mass() - dampForce);
+		auto dampForceDMass{ state->get_total_angular_damp() * state->get_angular_velocity() };
+		onTorqueAccChanged(vec.z / get_mass() - dampForceDMass);
 	}
 
 }
@@ -325,7 +325,7 @@ void Ship::AddThruster(size_t thGroup)
 		return;
 	}
 	//assert(thGroup >= 0 && thGroup < maxThGroupCount);
-	if (!stateInfo.test(inputInfoBitsize)) {
+	if (!inputStates.test(inputInfoBitsize)) {
 		auto* owner{ get_owner() };
 		//try?
 		bodySprite = memnew(std::remove_pointer_t<decltype(bodySprite)>);
@@ -339,7 +339,7 @@ void Ship::AddThruster(size_t thGroup)
 		add_child(bodyShape);
 		bodyShape->set_owner(owner);
 
-		stateInfo.set(inputInfoBitsize);
+		inputStates.set(inputInfoBitsize);
 	}
 
 	auto* thruster{ memnew(Thruster) };
@@ -358,18 +358,18 @@ void Ship::AddThruster(size_t thGroup)
 
 /*void Ship::ChangeInputState(InputDirection dir, bool isPressed)&
 {
-	//stateInfo.test(static_cast<size_t>(InDir::Up)) -
-		//stateInfo.test(static_cast<size_t>(InDir::Down)
-	stateInfo[static_cast<size_t>(dir)] = isPressed;
-	//stateInfo.flip(static_cast<size_t>(dir));
+	//inputStates.test(static_cast<size_t>(InDir::Up)) -
+		//inputStates.test(static_cast<size_t>(InDir::Down)
+	inputStates[static_cast<size_t>(dir)] = isPressed;
+	//inputStates.flip(static_cast<size_t>(dir));
 }
 
 void Ship::ChangeInputState(InputDirection dir, int thGroup, bool isPressed)&
 {
 	//I allow -1 here to be consistent in inputMap
 	assert(thGroup >= -1 && thGroup < maxThGroupCount);
-	//stateInfo.flip(4 * (thGroup + 1) + static_cast<size_t>(dir));
-	stateInfo[4 * (static_cast<size_t>(thGroup + 1)) + static_cast<size_t>(dir)] = isPressed;
+	//inputStates.flip(4 * (thGroup + 1) + static_cast<size_t>(dir));
+	inputStates[4 * (static_cast<size_t>(thGroup + 1)) + static_cast<size_t>(dir)] = isPressed;
 }
 
 void Ship::RemoveThruster(size_t thGroup)&
@@ -404,8 +404,8 @@ float Ship::GetSpriteRadius() const&
 
 int Ship::GetVerticalInput() const&
 {
-	return stateInfo.test(static_cast<size_t>(InDir::Up)) - 
-		stateInfo.test(static_cast<size_t>(InDir::Down));
+	return inputStates.test(static_cast<size_t>(InDir::Up)) - 
+		inputStates.test(static_cast<size_t>(InDir::Down));
 }
 
 int Ship::GetVerticalInput(size_t thGroup) const&
@@ -414,8 +414,8 @@ int Ship::GetVerticalInput(size_t thGroup) const&
 
 	size_t groupOffset{ 4 * (thGroup + 1) };
 
-	switch (stateInfo.test(groupOffset + static_cast<size_t>(InDir::Up)) -
-		stateInfo.test(groupOffset + static_cast<size_t>(InDir::Down)) +
+	switch (inputStates.test(groupOffset + static_cast<size_t>(InDir::Up)) -
+		inputStates.test(groupOffset + static_cast<size_t>(InDir::Down)) +
 		GetVerticalInput()) {
 	case -2:
 		return -1;
@@ -434,8 +434,8 @@ int Ship::GetVerticalInput(size_t thGroup) const&
 
 int Ship::GetHorizontalInput() const&
 {
-	return stateInfo.test(static_cast<size_t>(InDir::Right)) -
-		stateInfo.test(static_cast<size_t>(InDir::Left));
+	return inputStates.test(static_cast<size_t>(InDir::Right)) -
+		inputStates.test(static_cast<size_t>(InDir::Left));
 }
 
 int Ship::GetHorizontalInput(size_t thGroup) const&
@@ -444,8 +444,8 @@ int Ship::GetHorizontalInput(size_t thGroup) const&
 
 	size_t groupOffset{ 4 * (thGroup + 1) };
 
-	switch (stateInfo.test(groupOffset + static_cast<size_t>(InDir::Right)) -
-		stateInfo.test(groupOffset + static_cast<size_t>(InDir::Left)) +
+	switch (inputStates.test(groupOffset + static_cast<size_t>(InDir::Right)) -
+		inputStates.test(groupOffset + static_cast<size_t>(InDir::Left)) +
 		GetHorizontalInput()) {
 	case -2:
 		return -1;
@@ -471,6 +471,31 @@ void Ship::_process(double delta)
 		//RotateThrusters(delta);
 		//DBG_PRINT("RotateThrusters");
 	}*/
+}
+
+godot::Vector2 Ship::GetExternalLinearForce(godot::PhysicsDirectBodyState2D* state) const&
+{
+	assert(state);
+	return state->get_total_gravity() - state->get_total_linear_damp() * state->get_linear_velocity() * get_mass();
+}
+
+float Ship::GetExternalTorqueForce(godot::PhysicsDirectBodyState2D* state) const&
+{
+	return state->get_total_angular_damp() * state->get_angular_velocity();
+}
+
+godot::Vector2 Ship::GetExternalLinearForce() const&
+{
+	auto* physServ{ godot::PhysicsServer2D::get_singleton() };
+	auto* state{ physServ->body_get_direct_state(get_rid()) };
+	return GetExternalLinearForce(state);
+}
+
+float Ship::GetExternalTorqueForce() const&
+{
+	auto* physServ{ godot::PhysicsServer2D::get_singleton() };
+	auto* state{ physServ->body_get_direct_state(get_rid()) };
+	return GetExternalTorqueForce(state);
 }
 
 void Ship::RotateThrusters(double delta)&
@@ -530,7 +555,7 @@ void Ship::AddThrust(double delta)&
 	}
 }
 
-void Ship::AddThrustNoNotify(double delta, size_t thNum)&
+/*void Ship::AddThrustNoNotify(double delta, size_t thNum)&
 {
 	assert(thNum < thrusters.size());
 	thrusters[thNum]->ChangePowerLevel(delta);
@@ -542,7 +567,7 @@ void Ship::AddThrust(double delta, size_t thNum)&
 	if (onThrusterStateChanged) [[likely]] {
 		onThrusterStateChanged(thNum);
 	}
-}
+}*/
 
 /*void Ship::AddThrust(double deltaLevel, size_t thGroup)&
 {

@@ -93,9 +93,9 @@ void ThrustersMonitor::UpdateThWidget(const Thruster* thruster)&
 
 void ThrustersMonitor::SetShip(const Ship& ship, godot::Node* owner)&
 {
-	auto widgets{ RetreiveChildren() };
-	const auto thGroups{ ship.GetThGroups() };
-	static auto adder = [](size_t a, const decltype(thGroups)::value_type& vec)
+	std::vector<ThrusterWidget*> widgets{ RetreiveChildren() };
+	//const auto thGroups{ ship.GetThGroups() };
+	/*static auto adder = [](size_t a, const decltype(thGroups)::value_type& vec)
 		noexcept(noexcept(vec.size())) -> size_t { return a + vec.size(); };
 	const size_t thrustersNum{ std::reduce(std::execution::unseq, thGroups.begin(),
 		thGroups.end(), static_cast<size_t>(0), adder) };
@@ -136,5 +136,5 @@ void ThrustersMonitor::SetShip(const Ship& ship, godot::Node* owner)&
 		}
 		wgGroups[i].shrink_to_fit();
 	}
-	assert(widgetsUsed == widgets.size() && widgets.size() == thrustersNum);
+	assert(widgetsUsed == widgets.size() && widgets.size() == thrustersNum);*/
 }

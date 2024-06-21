@@ -285,7 +285,22 @@ ShipGUI* PlayerShipController::RetreiveShipGUI() const&
 		return Object::cast_to<ShipGUI>(canvas->find_child(ShipGUI::get_class_static(), false));
 		//DBG_PRINT(canvas);
 	}
+	assert(false);
 	return nullptr;
+}
+
+void PlayerShipController::OnThrusterGroupsChanged()
+{
+	size_t groupCount{ 0 };
+	assert(thGroups.size());
+	for (auto group : thGroups) {
+		if (group > groupCount) {
+			groupCount = group;
+		}
+	}
+	//starts from 0
+	groupCount += 1;
+	inputStates.resize(groupCount + 1);
 }
 
 PlayerShipController::PlayerShipController()
@@ -316,8 +331,10 @@ void PlayerShipController::Posess(Ship& newShip)&
 	auto thrustersSize{ thrusters.size() };
 	thGroups.resize(thrustersSize);
 	for (size_t i{ 0 }; i < thrustersSize; ++i) {
-		thGroup[i] = thrusters[i]->GetThGroup();
+		thGroups[i] = thrusters[i]->GetThGroup();
 	}
+
+	OnThrusterGroupsChanged();
 }
 
 void PlayerShipController::Unposess()&
@@ -330,6 +347,63 @@ void PlayerShipController::Unposess()&
 	}
 	//ship->set_process_mode(PROCESS_MODE_DISABLED);
 	set_process_unhandled_key_input(false);
+}
+
+int PlayerShipController::GetVerticalInput() const&
+{
+	return inputStates[0].test(static_cast<size_t>(InDir::Up)) -
+		inputStates[0].test(static_cast<size_t>(InDir::Down));
+}
+
+int PlayerShipController::GetVerticalInput(size_t thGroup) const&
+{
+	assert(thGroup >= 0 && thGroup <= static_cast<int>(inputStates.size()));
+
+
+	switch (inputStates[thGroup + 1].test(static_cast<size_t>(InDir::Up)) -
+		inputStates[thGroup + 1].test(static_cast<size_t>(InDir::Down)) +
+		GetVerticalInput()) {
+	case -2:
+		return -1;
+	case -1:
+		return -1;
+	case 1:
+		return 1;
+	case 2:
+		return 1;
+	default:
+		[[fallthrough]];
+	case 0:
+		return 0;
+	}
+}
+
+int PlayerShipController::GetHorizontalInput() const&
+{
+	return inputStates[0].test(static_cast<size_t>(InDir::Right)) -
+		inputStates[0].test(static_cast<size_t>(InDir::Left));
+}
+
+int PlayerShipController::GetHorizontalInput(size_t thGroup) const&
+{
+	assert(thGroup >= 0 && thGroup <= inputStates.size());
+
+	switch (inputStates[thGroup + 1].test(static_cast<size_t>(InDir::Right)) -
+		inputStates[thGroup + 1].test(static_cast<size_t>(InDir::Left)) +
+		GetHorizontalInput()) {
+	case -2:
+		return -1;
+	case -1:
+		return -1;
+	case 1:
+		return 1;
+	case 2:
+		return 1;
+	default:
+		[[fallthrough]];
+	case 0:
+		return 0;
+	}
 }
 
 void PlayerShipController::_enter_tree()
@@ -358,27 +432,142 @@ void PlayerShipController::_process(double deltatime)
 	UpdateCamera(deltatime);
 }
 
+void PlayerShipController::_physics_process(double deltatime)
+{
+	if (bStopIssued) {
+		weights = vec2{ 0.8, 0.2 };
+		//recalc
+
+		SetDesiredLinearForce({ 0., 0. });
+		//desiredEngineForces = vec3{ 0., 0., 0. };
+		assert(ship);
+		auto& thrusters{ ship->GetThrusters() };
+		size_t thrustersSize{ thrusters.size() };
+
+		//alloca on stack - try
+		std::vector<double> X{ relPosX };
+		std::vector<double> Y{ relPosX };
+
+		for (size_t i{ 0 }; i < thrustersSize; ++i) {
+			auto pos{ thrusters[i]->get_position() };
+			X[i] = thrusters[i]->get_rotation();
+			Y[i] = thrusters[i]->GetThrust();
+
+			constrX[i].first = X[i];
+			constrX[i].second = constrX[i].first + deltatime * GetThrusterRotationSpeed();
+			constrX[i].first -= deltatime * GetThrusterRotationSpeed();
+
+			constrY[i].second = thrusters[i]->GetMaxThrust();
+		}
+
+		Solve(weights, desiredEngineForces, X, Y);
+
+		for (size_t i{ 0 }; i < thrustersSize; ++i) {
+			thrusters[i]->set_rotation(X[i]);
+			thrusters[i]->SetPowerFromThrust(Y[i]);
+		}
+	}
+
+	switch (controlMode) {
+	case ShipControlMode::Direct:
+	{
+		auto& thrusters{ ship->GetThrusters() };
+		for (int i{ 0 }; i < thrusters.size(); ++i) {
+			if (int input{ GetHorizontalInput(thGroups[i]) }) {
+				thrusters[i]->rotate(deltatime * input * GetThrusterRotationSpeed());
+				//notifications?
+			}
+
+			
+
+			if (int input{ GetVerticalInput(thGroups[i]) }) {
+				thrusters[i]->ChangePowerLevel(deltatime * input);
+				//notifications?
+			}
+		}
+		break;
+	}
+	case ShipControlMode::WASD:
+		break;
+	default:
+		break;
+	}
+}
+
 void PlayerShipController::_unhandled_key_input(const godot::Ref<godot::InputEvent>& event)
 {
+	//DBG_PRINT("PlayerShipController::_unhandled_key_input");
 	if (event->is_echo()) {
 		return;
 	}
 
-	//change input info
 	if (auto* action{ Object::cast_to<godot::InputEventKey>(*event) }) {
 		//action->get_keycode_with_modifiers
-		if (auto mapped{ inputMap.find(action->get_keycode()) };
-			mapped != inputMap.end()) {
-			//DBG_PRINT(event.ptr());
-			ship->ChangeInputState(mapped->second.first, mapped->second.second, action->is_pressed());
-			//godot::Viewport
-			get_viewport()->set_input_as_handled();
+		if (auto mapped{ specialInputMap.find(action->get_keycode()) };
+			mapped != specialInputMap.end()) {
+
+			switch (mapped->second) {
+			case SpecialInputs::IssueStop:
+			{
+				bStopIssued = true;
+				get_viewport()->set_input_as_handled();
+				return;
+			}
+			default:
+				break;
+			}
 		}
 	}
+
+
+	switch (controlMode) {
+	case ShipControlMode::Direct:
+	{
+		if (auto * action{ Object::cast_to<godot::InputEventKey>(*event) }) {
+			//action->get_keycode_with_modifiers
+			if (auto mapped{ inputMap.find(action->get_keycode()) };
+				mapped != inputMap.end()) {
+
+				//DBG_PRINT(event.ptr());
+				ChangeInputState(mapped->second.first, mapped->second.second, action->is_pressed());
+				//godot::Viewport
+				get_viewport()->set_input_as_handled();
+				bStopIssued = false;
+			}
+		}
+		break;
+	}
+	case ShipControlMode::WASD:
+
+		break;
+	default:
+		break;
+	}
+
+	//change input info
+	
 	//not keys
 }
 
-void PlayerShipController::RotateThrusters(double delta)&
+void PlayerShipController::ChangeInputState(InputDirection dir, bool isPressed)&
+{
+	//inputStates.test(static_cast<size_t>(InDir::Up)) -
+		//inputStates.test(static_cast<size_t>(InDir::Down)
+
+	inputStates[0][static_cast<size_t>(dir)] = isPressed;
+	//inputStates.flip(static_cast<size_t>(dir));
+}
+
+void PlayerShipController::ChangeInputState(InputDirection dir, int thGroup, bool isPressed)&
+{
+	//I allow -1 here to be consistent in inputMap
+	assert(thGroup >= -1 && thGroup <= static_cast<int>(inputStates.size()));
+	//inputStates.flip(4 * (thGroup + 1) + static_cast<size_t>(dir));
+	inputStates[static_cast<size_t>(thGroup + 1)][static_cast<size_t>(dir)] = isPressed;
+}
+
+
+/*void PlayerShipController::RotateThrusters(double delta)&
 {
 	assert(ship);
 	ship->RotateThrusters(delta);
@@ -395,7 +584,7 @@ void PlayerShipController::RotateThrusters(double delta, size_t thGroup)&
 
 	/*auto rotator = [delta, thGroup](Thruster* th)
 		noexcept(noexcept(th->rotate(delta))) -> void
-		{ th->rotate(delta); };*/
+		{ th->rotate(delta); };*
 }
 
 void PlayerShipController::AddThrust(double delta)&
@@ -409,7 +598,7 @@ void PlayerShipController::AddThrust(double delta, size_t thGroup)&
 	assert(ship);
 	for (size_t i{ 0 }; i < thGroups.size(); ++i) {
 		if (thGroups[i] == thGroup) {
-			ship->AddThrust(delta, i);
+			//ship->AddThrust(delta, i);
 		}
 	}
-}
+}*/

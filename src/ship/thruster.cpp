@@ -22,12 +22,6 @@ float Thruster::DrawFunc(float inLevel) const
 	return inLevel;
 }
 
-float Thruster::ThrustFunc(float inLevel) const
-{
-	//TODO PROBABLY INLEVEL ^ (M/N)
-	assert(inLevel >= 0.f && inLevel <= 1.f);
-	return inLevel;
-}
 
 Thruster::Thruster()
 {
@@ -91,6 +85,11 @@ void Thruster::SetPowerRelative(float multiplier) &
 	}
 }
 
+void Thruster::SetPowerFromThrust(double thrust)&
+{
+	SetPowerLevel(thrust / thrustMultiplier);
+}
+
 void Thruster::SetPowerLevel(float inLevel)&
 {
 	powerLevel = std::clamp(inLevel, 0.f, 1.f);
@@ -131,7 +130,13 @@ float Thruster::GetDraw() const&
 
 float Thruster::GetThrust() const&
 {
-	return maxThrust * ThrustFunc(powerLevel);
+	assert(powerLevel >= 0.f && powerLevel <= 1.f);
+	return thrustMultiplier * powerLevel;
+}
+
+float Thruster::GetMaxThrust() const&
+{
+	return thrustMultiplier;
 }
 
 float Thruster::GetPowerLevel() const&

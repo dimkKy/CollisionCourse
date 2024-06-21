@@ -8,6 +8,7 @@
 
 #include <vector>
 #include <array>
+#include <bitset>
 
 class Ship;
 class ShipGUI;
@@ -17,6 +18,21 @@ namespace godot {
 	class Ref;
 	class Viewport;
 }
+
+enum class ShipControlMode {
+	Direct, 
+	WASD,
+
+};
+
+namespace ShipCtrlMode {
+	constexpr inline const ShipControlMode Direct{ ShipControlMode::Direct };
+	constexpr inline const ShipControlMode WASD{ ShipControlMode::WASD };
+}
+
+enum class SpecialInputs {
+	IssueStop,
+};
 
 
 class PlayerShipController : public ShipController
@@ -50,7 +66,6 @@ protected:
 	float prevScale{ baseScale };
 
 	godot::Viewport* viewport{ nullptr };
-	Ship* ship{ nullptr };
 	ShipGUI* shipGUI{ nullptr };
 
 	float shipSizeRadius{ 0.f };
@@ -74,6 +89,22 @@ protected:
 		{godot::KEY_K, {InDir::Down, 1}},
 	};
 
+	static inline std::unordered_map<godot::Key, SpecialInputs> specialInputMap{
+		{godot::KEY_M, SpecialInputs::IssueStop},
+	};
+
+	// (4) input info (all -> thGroup):
+	// left/up/right/down
+	//static constexpr int inputInfoBitsize{ 4 * (maxThGroupCount + 1) };
+
+	//std::bitset<inputInfoBitsize + 1> inputStates;
+
+	std::vector<std::bitset<4>> inputStates;
+
+	void ChangeInputState(InputDirection dir, bool isPressed)&;
+	//I allow -1 here to be consistent in inputMap
+	void ChangeInputState(InputDirection dir, int thGroup, bool isPressed)&;
+
 	static float CalcBaseScale(float shipAbsVel);
 	static godot::Vector2 CalcSmoothed(const godot::Vector2& newVal, const godot::Vector2& oldVal);
 	static float CalcSmoothed(float newVal, float oldVal);
@@ -87,25 +118,37 @@ protected:
 	godot::Vector2 GetCameraScreenSize() const&;
 
 	ShipGUI* RetreiveShipGUI() const&;
+
+	void OnThrusterGroupsChanged();
+
 public:
 	PlayerShipController();
 	virtual void Posess(Ship& newShip)& override;
 	virtual void Unposess()& override;
 
+	[[nodiscard]] int GetVerticalInput() const&;
+	[[nodiscard]] int GetVerticalInput(size_t thGroup) const&;
+
+	[[nodiscard]] int GetHorizontalInput() const&;
+	[[nodiscard]] int GetHorizontalInput(size_t thGroup) const&;
+
 	virtual void _enter_tree() override;
 	virtual void _exit_tree() override;
 	virtual void _ready() override;
 	virtual void _process(double deltatime) override;
+	virtual void _physics_process(double deltatime) override;
 	virtual void _unhandled_key_input(const godot::Ref<godot::InputEvent>& event) override;
 
-	void RotateThrusters(double delta)&;
-	void RotateThrusters(double delta, size_t thGroup)&;
+	//void RotateThrusters(double delta)&;
+	//void RotateThrusters(double delta, size_t thGroup)&;
 
-	void AddThrust(double delta)&;
-	void AddThrust(double delta, size_t thGroup)&;
+	//void AddThrust(double delta)&;
+	//void AddThrust(double delta, size_t thGroup)&;
 
 protected:
 	static void _bind_methods();
+
+	ShipControlMode controlMode{ ShipCtrlMode::Direct };
 
 	std::vector<size_t> thGroups;
 };

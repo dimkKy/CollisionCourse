@@ -5,7 +5,7 @@
 #include <godot_cpp/classes/rigid_body2d.hpp>
 #include <ship/input_directions.h>
 //#include <godot_cpp/classes/input_event.hpp>
-#include <bitset>
+
 #include <functional>
 
 class Thruster;
@@ -20,6 +20,7 @@ namespace godot {
 	class CollisionShape2D;
 	struct Vector2;
 	struct Vector3;
+	struct PhysicsDirectBodyState2D;
 }
 
 class Ship : public godot::RigidBody2D
@@ -41,7 +42,7 @@ protected:
 	// left/up/right/down
 	//static constexpr int inputInfoBitsize{ 4 * (maxThGroupCount + 1) };
 
-	//std::bitset<inputInfoBitsize + 1> stateInfo;
+	//std::bitset<inputInfoBitsize + 1> inputStates;
 
 	//thGroupsArrayType thGroups;
 	std::vector<Thruster*> thrusters;
@@ -70,6 +71,10 @@ protected:
 
 	//[[nodiscard]] int GetHorizontalInput() const&;
 	//[[nodiscard]] int GetHorizontalInput(size_t thGroup) const&;
+
+	godot::Vector2 GetExternalLinearForce(godot::PhysicsDirectBodyState2D* state) const&;
+
+	float GetExternalTorqueForce(godot::PhysicsDirectBodyState2D* state) const&;
 public:
 	Ship();
 	virtual void _enter_tree() override;
@@ -91,14 +96,18 @@ public:
 
 	float GetSpriteRadius() const&;	
 
+	//template<bool bIncludeGravity>
+	godot::Vector2 GetExternalLinearForce() const&;
+	real_t GetExternalTorqueForce() const&;
+
 	void RotateThrusters(double delta) &;
 	void RotateThruster(double delta, size_t thNum)&;
 	void RotateThrusterNoNotify(double delta, size_t thNum)&;
 	//void RotateThrusters(double delta, size_t thGroup)&;
 
 	void AddThrust(double deltaLevel)&;
-	void AddThrust(double deltaLevel, size_t thNum)&;
-	void AddThrustNoNotify(double deltaLevel, size_t thNum)&;
+	//void AddThrust(double deltaLevel, size_t thNum)&;
+	//void AddThrustNoNotify(double deltaLevel, size_t thNum)&;
 	//void AddThrust(double deltaLevel, size_t thGroup)&;
 
 	[[nodiscard]] godot::Vector2 GetVisibleEnclosingRect() const&;
