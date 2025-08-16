@@ -3,6 +3,7 @@
 #include "utils.h"
 #include <godot_cpp/variant/vector2.hpp>
 #include <cassert>
+#include <numbers>
 
 bool Utils::IsInRect(const godot::Vector2& p, const godot::Vector2& rLU, const godot::Vector2& rRD)
 {
@@ -49,4 +50,19 @@ godot::Vector2 Utils::SqrtVec(const godot::Vector2& vec, real_t length)
     else {
         return vec.normalized() * std::sqrt(length);
     }
+}
+
+double Utils::RadiansReminder(double radAngle)
+{
+    return std::remainder(radAngle, std::numbers::pi * 2.);
+}
+
+double Utils::RadiansFmod(double radAngle)
+{
+    return std::fmod(radAngle, std::numbers::pi * 2.);
+}
+
+double Utils::Square(double in)
+{
+    return in * in;
 }

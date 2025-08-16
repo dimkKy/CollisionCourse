@@ -21,7 +21,7 @@ protected:
 	float maxDraw{ 100.f };
 	//max - 1.
 	float powerLevel{ 0.f };
-	float thrustMultiplier{ 100000.f };
+	float thrustMultiplier{ 10.f };
 	godot::AnimatedSprite2D* flameSprite{ nullptr };
 	godot::AnimatedSprite2D* bodySprite{ nullptr };
 	godot::CollisionShape2D* bodyShape{ nullptr };
@@ -51,5 +51,6 @@ public:
 	float GetThrust() const &;
 	float GetMaxThrust() const &;
 	float GetPowerLevel() const &;
+	void GetThrustDelta(float delta, double& low, double& max) const &;
 };
 

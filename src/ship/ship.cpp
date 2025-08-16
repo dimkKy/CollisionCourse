@@ -225,23 +225,23 @@ void Ship::RetreiveChildren(godot::Node* owner)&
 
 float Ship::CalcPowerDraw() const& noexcept
 {
-	static auto adder = [](float a, const Thruster* t)
+	static auto adder = [](real_t a, const Thruster* t)
 		noexcept(noexcept(t->GetDraw()))
 		{ return a + t->GetDraw(); };
 
 	return std::reduce(std::execution::unseq,
-		thrusters.begin(), thrusters.end(), 0.f, adder);
+		thrusters.begin(), thrusters.end(), static_cast<real_t>(0.), adder);
 }
 
 float Ship::CalcTorque() const&
 {	
- 	static auto adder = [](float a, const Thruster* t) {
+ 	static auto adder = [](real_t a, const Thruster* t) {
 		return a + t->get_position().cross(
 			godot::Vector2::from_angle(t->get_rotation()) * t->GetThrust());
 	};
 
 	return std::reduce(std::execution::unseq,
-		thrusters.begin(), thrusters.end(), 0.f, adder);
+		thrusters.begin(), thrusters.end(), static_cast<real_t>(0.), adder);
 }
 
 godot::Vector2 Ship::CalcForce() const&
@@ -266,7 +266,7 @@ godot::Vector2 Ship::GetVisibleEnclosingRectOffset() const&
 
 godot::Vector2 Ship::GetVisibleEnclosingHalfSize() const&
 {
-	return GetVisibleEnclosingRect() * 0.5f;
+	return GetVisibleEnclosingRect() * 0.5;
 }
 
 real_t Ship::GetVisibleEnclosingRadius() const&
@@ -388,7 +388,7 @@ int Ship::DummyGetter() const noexcept
 	return -1;
 }
 
-float Ship::GetSpriteRadius() const&
+real_t Ship::GetSpriteRadius() const&
 {
 	if (bodySprite) {
 		if (auto frames{ *bodySprite->get_sprite_frames() }) {
@@ -473,6 +473,11 @@ void Ship::_process(double delta)
 	}*/
 }
 
+godot::PhysicsDirectBodyState2D* Ship::GetPhysicsState() const&
+{
+	return godot::PhysicsServer2D::get_singleton()->body_get_direct_state(get_rid());
+}
+
 godot::Vector2 Ship::GetExternalLinearForce(godot::PhysicsDirectBodyState2D* state) const&
 {
 	assert(state);
@@ -486,12 +491,10 @@ float Ship::GetExternalTorqueForce(godot::PhysicsDirectBodyState2D* state) const
 
 godot::Vector2 Ship::GetExternalLinearForce() const&
 {
-	auto* physServ{ godot::PhysicsServer2D::get_singleton() };
-	auto* state{ physServ->body_get_direct_state(get_rid()) };
-	return GetExternalLinearForce(state);
+	return GetExternalLinearForce(GetPhysicsState());
 }
 
-float Ship::GetExternalTorqueForce() const&
+real_t Ship::GetExternalTorqueForce() const&
 {
 	auto* physServ{ godot::PhysicsServer2D::get_singleton() };
 	auto* state{ physServ->body_get_direct_state(get_rid()) };
@@ -520,7 +523,7 @@ void Ship::RotateThrusterNoNotify(double delta, size_t thNum)&
 
 void Ship::RotateThruster(double delta, size_t thNum)&
 {
-	RotateThruster(delta, thNum);
+	RotateThrusterNoNotify(delta, thNum);
 	if (onThrusterStateChanged) [[likely]] {
 		onThrusterStateChanged(thNum);
 	}

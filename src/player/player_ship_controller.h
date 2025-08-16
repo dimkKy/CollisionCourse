@@ -46,10 +46,10 @@ protected:
 	static inline constinit float velScaleCoef{ 0.001f };
 	//static inline constinit float velOffsetCoef{ 0.4f };
 	static inline constinit float velShiftThreshhold{ 35.f };
-	static inline constinit float baseScale{ 2.5f };
+	static inline constinit float baseScale{ 3.f };
 
 	static inline std::pair<float, float>
-		scaleConstraint{ baseScale, baseScale * 5.f };
+		scaleConstraint{ baseScale, baseScale * 4.f };
 	
 	static inline constinit float cameraDeadZone{ 0.2f };
 	//static inline constinit float cameraLimitZone{ 0.75f };

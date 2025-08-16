@@ -72,6 +72,8 @@ protected:
 	//[[nodiscard]] int GetHorizontalInput() const&;
 	//[[nodiscard]] int GetHorizontalInput(size_t thGroup) const&;
 
+	
+
 	godot::Vector2 GetExternalLinearForce(godot::PhysicsDirectBodyState2D* state) const&;
 
 	float GetExternalTorqueForce(godot::PhysicsDirectBodyState2D* state) const&;
@@ -94,9 +96,11 @@ public:
 	//const thGroupsArrayType GetThGroups() const&;
 	int DummyGetter() const noexcept;
 
-	float GetSpriteRadius() const&;	
+	real_t GetSpriteRadius() const&;
 
 	//template<bool bIncludeGravity>
+	//const pointer?
+	godot::PhysicsDirectBodyState2D* GetPhysicsState() const&;
 	godot::Vector2 GetExternalLinearForce() const&;
 	real_t GetExternalTorqueForce() const&;
 

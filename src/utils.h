@@ -182,5 +182,8 @@ namespace Utils
 
 	[[nodiscard]] godot::Vector2 SqrtVec(const godot::Vector2& vec);
 	[[nodiscard]] godot::Vector2 SqrtVec(const godot::Vector2& vec, real_t length);
+	[[nodiscard]] double RadiansReminder(double radAngle);
+	[[nodiscard]] double RadiansFmod(double radAngle);
+	[[nodiscard]] double Square(double in);
 };
 

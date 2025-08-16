@@ -143,3 +143,11 @@ float Thruster::GetPowerLevel() const&
 {
 	return powerLevel;
 }
+
+void Thruster::GetThrustDelta(float delta, double& low, double& max) const&
+{
+	assert(delta > 0.f);
+	low = powerLevel > delta ? thrustMultiplier * (powerLevel - delta) : 0.;
+	max += delta;
+	max = max > 1. ? thrustMultiplier : max * thrustMultiplier;
+}

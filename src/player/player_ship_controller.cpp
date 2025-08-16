@@ -435,10 +435,13 @@ void PlayerShipController::_process(double deltatime)
 void PlayerShipController::_physics_process(double deltatime)
 {
 	if (bStopIssued) {
-		weights = vec2{ 0.8, 0.2 };
+		double linWeight{ 0.9999999 };
+		weights = vec2{ linWeight, 1. - linWeight };
 		//recalc
 
-		SetDesiredLinearForce({ 0., 0. });
+		CalcSetDesiredLinearForce({ 0., 0. }, deltatime);
+		CalcSetDesiredTorquByRotation(0., deltatime);
+		//DBG_PRINT(desiredEngineForces);
 		//desiredEngineForces = vec3{ 0., 0., 0. };
 		assert(ship);
 		auto& thrusters{ ship->GetThrusters() };
@@ -448,24 +451,34 @@ void PlayerShipController::_physics_process(double deltatime)
 		std::vector<double> X{ relPosX };
 		std::vector<double> Y{ relPosX };
 
+		auto xDelta{ deltatime * GetThrusterRotationSpeed() };
+		auto yDelta{ deltatime * GetThrusterPowerChangeSpeed() };
+
 		for (size_t i{ 0 }; i < thrustersSize; ++i) {
-			auto pos{ thrusters[i]->get_position() };
 			X[i] = thrusters[i]->get_rotation();
 			Y[i] = thrusters[i]->GetThrust();
 
-			constrX[i].first = X[i];
-			constrX[i].second = constrX[i].first + deltatime * GetThrusterRotationSpeed();
-			constrX[i].first -= deltatime * GetThrusterRotationSpeed();
+			constrX[i].first = X[i] - xDelta;
+			constrX[i].second = X[i] + xDelta;
 
-			constrY[i].second = thrusters[i]->GetMaxThrust();
+
+			thrusters[i]->GetThrustDelta(yDelta, constrY[i].first, constrY[i].second);
+			
+
+			//constrY[i].first 
+			//constrY[i].second = /Y[i] +*/ thrusters[i]->GetMaxThrust();
 		}
 
-		Solve(weights, desiredEngineForces, X, Y);
+		SolveV2(X, Y);
 
 		for (size_t i{ 0 }; i < thrustersSize; ++i) {
 			thrusters[i]->set_rotation(X[i]);
 			thrusters[i]->SetPowerFromThrust(Y[i]);
+			//thrusters[i]->SetZeroPower();
 		}
+		//ship->apply_force(godot::Vector2(desiredEngineForces[0], desiredEngineForces[1]));
+		//ship->apply_torque(desiredEngineForces[2]);
+		return;
 	}
 
 	switch (controlMode) {
@@ -481,7 +494,7 @@ void PlayerShipController::_physics_process(double deltatime)
 			
 
 			if (int input{ GetVerticalInput(thGroups[i]) }) {
-				thrusters[i]->ChangePowerLevel(deltatime * input);
+				thrusters[i]->ChangePowerLevel(deltatime * input * GetThrusterPowerChangeSpeed());
 				//notifications?
 			}
 		}
